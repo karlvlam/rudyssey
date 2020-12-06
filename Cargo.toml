@@ -1,0 +1,21 @@
+[package]
+name = "rudyssey"
+version = "0.0.1"
+authors = ["Karl Lam <karl.v.lam@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+regex = "1.4.2"
+toml = "0.5.7"
+serde = { version = "1.0", features = ["derive"] }
+lazy_static = "1.4.0"
+chrono = "0.4.19"
+
+
+[dependencies.async-std]
+futures = "1.7"
+features = ["attributes", "unstable"]
+

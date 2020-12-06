@@ -1,0 +1,57 @@
+########################
+# Rudyssey config file #
+########################
+
+##################
+# optional
+# INFO = 5
+# ERROR = 6
+# WARN = 7
+# DEBUG = 8
+# TRACE = 9
+##################
+log_level = 9 
+
+# optional
+default_user = "user1"
+
+# redis server address and port
+redis_url = "127.0.0.1:6379"
+# listen address and port 
+listen_url = "127.0.0.1:7878"
+
+# ["USER_NAME", "PASSWORD"] 
+auth = [
+    ["user1", "123"],
+    ["user2", "456"]
+]
+# ["USER_NAME", "REGEX_1", "REGEX_2" ...] 
+key_rule_read_deny = [
+ ["user1", "rd1a", "rd1b"],
+ ["user2", "rd2a", "rd2b"],
+]
+
+# ["USER_NAME", "REGEX_1", "REGEX_2" ...] 
+key_rule_read_allow = [
+ ["user1", "ra1a", "ra1b", ""],
+ ["user2", "ra2a", "ra2b"],
+]
+
+# ["USER_NAME", "REGEX_1", "REGEX_2" ...] 
+key_rule_write_deny = [
+ ["user1", "wd1a", "wd1b"],
+ ["user2", "wd2a", "wd2b"],
+]
+
+# ["USER_NAME", "REGEX_1", "REGEX_2" ...] 
+key_rule_write_allow = [
+ ["user1", "wa1a", "wa1b", ""],
+ ["user2", "wa2a", "wa2b"],
+]
+
+# ["USER_NAME", "CMD_TYPE_1", "CMD_TYPE_2" ...] 
+cmd_rule_allow = [
+ ["user1", "aaaa", "ADMIN"]
+]
+
+

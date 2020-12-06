@@ -1325,6 +1325,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
             let mut read_allow:Vec<Regex> = Vec::new();
             let mut write_deny:Vec<Regex> = Vec::new();
             let mut write_allow:Vec<Regex> = Vec::new();
+            let mut cmd_allow:Vec<CmdType> = Vec::new();
 
             read_deny.push(Regex::new("rd1").unwrap());
             read_deny.push(Regex::new("rd2").unwrap());
@@ -1349,6 +1350,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 read_allow,
                 write_deny,
                 write_allow,
+                cmd_allow,
             };
 
             key_rule

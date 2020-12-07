@@ -25,7 +25,7 @@ use chrono::prelude::*;
 use chrono::DateTime;
 
 
-const BUFFER_SIZE: usize = 8192;
+const BUFFER_SIZE: usize = 1024 * 64;
 
 const ARRAY:u8 = "*".as_bytes()[0];
 const STRING:u8 = "$".as_bytes()[0];

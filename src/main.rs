@@ -356,19 +356,6 @@ struct Config {
 
 #[async_std::main]
 async fn main() {
-    let s = "abcd1234".to_string();
-    match hash(s.as_str(), 12) {
-        Ok(hashed) => {
-            log!("{:?}", hashed);
-            match verify(s.as_str(), "$2b$12$WKp9vjnTTT5UJB.g7pC8uuwxiRa8LnV3yra3eadT1tEu.i5mgA58S") {
-                Ok(valid) => {
-                    log!("{:?}", valid);
-                }
-                _ => {}
-            }
-        }
-        Err(e) => { log!("{:?}", e); }
-    }
     log!("Rudyssey starts...");
 
     let mut args = std::env::args();

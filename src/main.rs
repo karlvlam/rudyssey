@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+extern crate bcrypt;
 
 //use async_std::fs;
 use async_std::io::prelude::*;
@@ -23,6 +24,7 @@ use toml;
 use serde::Deserialize;
 use chrono::prelude::*;
 use chrono::DateTime;
+use bcrypt::{hash, verify};
 
 
 const BUFFER_SIZE: usize = 1024 * 64;
@@ -354,6 +356,19 @@ struct Config {
 
 #[async_std::main]
 async fn main() {
+    let s = "abcd1234".to_string();
+    match hash(s.as_str(), 12) {
+        Ok(hashed) => {
+            log!("{:?}", hashed);
+            match verify(s.as_str(), "$2b$12$WKp9vjnTTT5UJB.g7pC8uuwxiRa8LnV3yra3eadT1tEu.i5mgA58S") {
+                Ok(valid) => {
+                    log!("{:?}", valid);
+                }
+                _ => {}
+            }
+        }
+        Err(e) => { log!("{:?}", e); }
+    }
     log!("Rudyssey starts...");
 
     let mut args = std::env::args();
@@ -573,9 +588,14 @@ fn validate_auth_cmd(config: &Arc<Config>, cmd_list: Vec<String>) -> Option<Stri
 
         match config.key_rule.get(&user.to_string()) {
             Some(rule) => {
-                if &rule.password == password {
-                    debug!("### Match ! ###");
-                    return Some(user.to_string());
+                match verify(password, &rule.password.as_str()) {
+                    Ok(true) => {
+                        debug!("### Match ! ###");
+                        return Some(user.to_string());
+                    }
+                    _ => {
+                        debug!("### Login error ###");
+                    }
                 }
             }
             None => {
@@ -588,10 +608,16 @@ fn validate_auth_cmd(config: &Arc<Config>, cmd_list: Vec<String>) -> Option<Stri
         let password = cmd_list.get(2).unwrap();
         match config.key_rule.get(&user.to_string()) {
             Some(rule) => {
-                if &rule.password == password {
-                    debug!("### Match ! ###");
-                    return Some(user.to_string());
+                match verify(password, &rule.password.as_str()) {
+                    Ok(true) => {
+                        debug!("### Match ! ###");
+                        return Some(user.to_string());
+                    }
+                    _ => {
+                        debug!("### Login error ###");
+                    }
                 }
+
             }
             None => {
                 debug!("### Not Match ! ###");

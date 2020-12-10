@@ -22,8 +22,8 @@ listen_url = "127.0.0.1:7878"
 
 # ["USER_NAME", "PASSWORD"] 
 auth = [
-    ["user1", "123"],
-    ["user2", "456"]
+    ["user1", "$2b$12$SnxUMvVeUi2R3A4GbKXe8e44fFMmb63pxFmR0D0tmQIUSglFTDUrK"],
+    ["user2", "$2b$12$SnxUMvVeUi2R3A4GbKXe8e44fFMmb63pxFmR0D0tmQIUSglFTDUrK"]
 ]
 # ["USER_NAME", "REGEX_1", "REGEX_2" ...] 
 key_rule_read_deny = [

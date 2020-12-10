@@ -13,7 +13,7 @@
 log_level = 9 
 
 # optional
-default_user = "user1"
+#default_user = "user1"
 
 # redis server address and port
 redis_url = "127.0.0.1:6379"

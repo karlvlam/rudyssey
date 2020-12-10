@@ -480,12 +480,12 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
 
 
 
-fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>){
+fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
     let cmd_len = cmd.len();
     debug!("STAR: {:?}", CR);
     debug!("vc: {:?}", cmd.len());
     if cmd_len == 0 {
-        return (Some("-Error ZERO array".to_string()) , None);
+        return (Some("-Error ZERO array".to_string()) , None, 1);
     }
 
     let mut cmd_list: Vec<String> = Vec::new();
@@ -495,7 +495,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>){
     // check first char, should be *
     if cmd[cur_r] != ARRAY {
         debug!("!!! NOT ARRAY !!!");
-        return (Some("-Err Not Array".to_string()), None);
+        return (Some("-Err Not Array".to_string()), None, cur_r + 1);
     }
 
     cur_l += 1;
@@ -508,11 +508,11 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>){
             debug!("Array LEN = {}", array_len);
             if array_len == 0 {
                 debug!("!!! FORMAT ERROR : Array Length !!!");
-                return (Some("-FORMAT ERROR : Array Length".to_string()), None);
+                return (Some("-FORMAT ERROR : Array Length".to_string()), None, cur_r+1);
             }
             if cmd[cur_r+1] != LF {
                 debug!("!!! FORMAT ERROR !!!");
-                return (Some("-FORMAT ERROR : CRLF".to_string()), None);
+                return (Some("-FORMAT ERROR : CRLF".to_string()), None, cur_r+2);
             }
 
             cur_r += 2;
@@ -526,7 +526,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>){
     for _i in 0..array_len {
         if cmd[cur_r] != STRING {
             debug!("!!! NOT STRING !!!");
-            return (Some("-FORMAT ERROR : NOT STRING".to_string()), None);
+            return (Some("-FORMAT ERROR : NOT STRING".to_string()), None, cur_r+1);
         }
         cur_r += 1;
         cur_l = cur_r;
@@ -539,12 +539,12 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>){
                 param_len = String::from_utf8_lossy(&cmd[cur_l..cur_r]).parse().unwrap_or(-1);
                 if param_len == -1 {
                     debug!("!!! FORMAT ERROR: param length !!!");
-                    return (Some("-FORMAT ERROR : param length".to_string()), None);
+                    return (Some("-FORMAT ERROR : param length".to_string()), None, cur_r+1);
                 }
                 //debug!("Param LEN = {}", param_len);
                 if cmd[cur_r+1] != LF {
                     debug!("!!! FORMAT ERROR !!!");
-                    return (Some("-FORMAT ERROR : CRLF".to_string()), None);
+                    return (Some("-FORMAT ERROR : CRLF".to_string()), None, cur_r+2);
                 }
 
                 cur_r += 2;
@@ -560,13 +560,13 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>){
         debug!("Param String = '{}'", param_string);
         if cmd[cur_r] != CR && cmd[cur_r+1] != LF {
             debug!("!!! FORMAT ERROR: param end CRLF !!!" );
-            return (Some("-FORMAT ERROR : param end CRLF".to_string()), None);
+            return (Some("-FORMAT ERROR : param end CRLF".to_string()), None, cur_r+2);
         }
         cur_r += 2; //skip CRLF
 
     }
 
-    (None, Some(cmd_list))
+    (None, Some(cmd_list), cur_r)
 }
 
 fn validate_auth_cmd(config: &Arc<Config>, cmd_list: Vec<String>) -> Option<String> {
@@ -1028,13 +1028,15 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
 
                 debug!("==== CMD ====");
+                debug!("{:?}", &buffer[0..byte_count]);
                 let cmd = String::from_utf8_lossy(&buffer[0..byte_count]);
                 debug!("{}", &cmd);
                 let mut cur_l:usize = 0;
                 let mut cur_r:usize = byte_count;
-                {
+                while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
-                        (Some(s), None) => {
+                        (Some(s), None, parse_count) => {
+                            debug!("CUR: {}, {}", cur_l, cur_r);
                             debug!("===== parse_cmd error");
                             match client_stream.write(s.as_bytes()).await {
                                 Ok(_) => {}
@@ -1043,8 +1045,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                     return;
                                 }
                             }
+                            cur_l += parse_count;
                         }
-                        (None, Some(cmd_list)) => {
+                        (None, Some(cmd_list), parse_count) => {
+                            debug!("CUR: {}, {}", cur_l, cur_r);
                             debug!("===== 2");
                             match get_cmd_type(&cmd_list){
                                 Some(CmdType::AUTH) => {
@@ -1073,6 +1077,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                             }
                                         }
                                     }
+                                    cur_l += parse_count;
                                 }
                                 Some(cmdtype) => {
                                     match key_rule {
@@ -1086,7 +1091,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                 }
                                             }
 
-
+                                            cur_l += parse_count;
                                             continue;
                                         }
                                         Some(key_rule) => {
@@ -1103,7 +1108,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                         //match validate_key_r_1(key_rule, &cmd_list) {
                                                         match validate_fn(key_rule, &cmd_list) {
                                                             None => {
-                                                                match server_stream.write(&buffer[0..byte_count]).await {
+                                                                match server_stream.write(&buffer[cur_l..cur_r]).await {
                                                                     Ok(_) => {}
                                                                     Err(e) => {
                                                                         error!("{}", e);
@@ -1125,7 +1130,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
                                                     // Public 
                                                     CmdType::CONNECTION | CmdType::CMD_KEYS => {
-                                                        match server_stream.write(&buffer[0..byte_count]).await {
+                                                        match server_stream.write(&buffer[cur_l..cur_r]).await {
                                                             Ok(_) => {}
                                                             Err(e) => {
                                                                 error!("{}", e);
@@ -1147,6 +1152,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                             }
 
                                         }
+                                        cur_l += parse_count;
 
                                     }
                                     None => {
@@ -1158,6 +1164,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                 return;
                                             }
                                         }
+                                        cur_l += parse_count;
                                     }
                                     _ => {
                                         debug!("===== 3c");
@@ -1165,6 +1172,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                             Ok(_) => {}
                                             Err(e) => error!("{}", e)
                                         }
+                                        cur_l += parse_count;
                                     }
                                 }
                             }

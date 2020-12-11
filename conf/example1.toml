@@ -20,6 +20,9 @@ redis_url = "127.0.0.1:6379"
 # listen address and port 
 listen_url = "127.0.0.1:7878"
 
+# health check address, optional
+#healthcheck_listen_url = "127.0.0.1:8000"
+
 # ["USER_NAME", "PASSWORD"] 
 auth = [
     ["user1", "$2b$12$SnxUMvVeUi2R3A4GbKXe8e44fFMmb63pxFmR0D0tmQIUSglFTDUrK"],

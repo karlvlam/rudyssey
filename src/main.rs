@@ -301,6 +301,7 @@ struct ConfigFile{
     default_user: Option<String>,
     redis_url: String,
     listen_url: String,
+    healthcheck_listen_url: Option<String>,
     key_rule_read_deny: Vec<Vec<String>>,
     key_rule_read_allow: Vec<Vec<String>>,
     key_rule_write_deny: Vec<Vec<String>>,
@@ -394,26 +395,60 @@ async fn main() {
     trace!("{:#?}", &config);
     let config = Arc::new(config);
 
-    // Listen for incoming TCP connections on localhost port 7878
-    let listener = TcpListener::bind(&config.listen_url).await.unwrap();
-    listener
-        .incoming()
-        .for_each_concurrent(/* limit */ None, |stream| async {
-            debug!("Incomming!");
-            let client_stream = stream.unwrap();
-            match TcpStream::connect(&config.redis_url).await {
-                Ok(server_stream) => { 
-                    debug!("Connected!");
-                    handle_connection(client_stream, server_stream, &config).await;
+    // healthcheck listener (optional)
+    match config_file.healthcheck_listen_url {
+        Some(addr) => {
+            spawn(async move {
+                match TcpListener::bind(&addr).await {
+                    Ok(listener) => {
+                        info!("Health check enabled: {}", &addr);
+                        listener
+                            .incoming()
+                            .for_each_concurrent(/* limit */ None, |stream| async {
+                            }).await;
+                    }
+                    Err(_e) => {
+                        log!("ERROR: health check listener cannot create: {:?}", _e);
+                        std::process::exit(1);
+                    }
                 }
-                Err(e) => {
-                    error!("{}", e);
-                    //client_stream.shutdown(Shutdown::Both);
-                }
-            }
+            });
 
-        })
-    .await;
+        }
+        None => {
+        }
+    }   
+
+
+   
+    // Redis Proxy listener
+    match TcpListener::bind(&config.listen_url).await {
+        Ok(listener) => {
+            info!("Redis Proxy listening: {}", &config.listen_url);
+            listener
+                .incoming()
+                .for_each_concurrent(/* limit */ None, |stream| async {
+                    debug!("Incomming!");
+                    let client_stream = stream.unwrap();
+                    match TcpStream::connect(&config.redis_url).await {
+                        Ok(server_stream) => { 
+                            debug!("Connected!");
+                            handle_connection(client_stream, server_stream, &config).await;
+                        }
+                        Err(e) => {
+                            error!("{}", e);
+                            client_stream.shutdown(Shutdown::Both);
+                        }
+                    }
+
+                })
+            .await;
+            }
+        Err(_e) => {
+            log!("ERROR: redis proxy listener cannot create: {:?}", _e);
+            std::process::exit(1);
+        }
+    }
 
 }
 

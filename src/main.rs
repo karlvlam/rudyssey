@@ -599,33 +599,39 @@ fn validate_auth_cmd(config: &Arc<Config>, cmd_list: Vec<String>) -> Option<Stri
     }
 
     if words == 2 {
+        // old format: "AUTH passphrase"
         let p = cmd_list.get(1).unwrap(); 
-        // TODO: handle case with multiple ":"
-        let phrases:Vec<&str> = p.split(":").collect();
-        if phrases.len() < 2 {
-            return None
-        }
-        let user = phrases.get(0).unwrap();
-        let password = phrases.get(1).unwrap();
 
-        match config.key_rule.get(&user.to_string()) {
-            Some(rule) => {
-                match verify(password, &rule.password.as_str()) {
-                    Ok(true) => {
-                        debug!("### Match ! ###");
-                        return Some(user.to_string());
+        // TODO: consider String::split_once() after stable
+        match p.find(':') {
+            None => { return None; }
+            Some(idx) => match p.split_at(idx) {
+                (user, pre_password) => {
+                    let (_, password) =  pre_password.split_at(1);
+                    match config.key_rule.get(&user.to_string()) {
+                        Some(rule) => {
+                            match verify(password, &rule.password.as_str()) {
+                                Ok(true) => {
+                                    debug!("### Match ! ###");
+                                    return Some(user.to_string());
+                                }
+                                _ => {
+                                    debug!("### Login error ###");
+                                }
+                            }
+                        }
+                        None => {
+                            debug!("### Not Match ! ###");
+                        }
+
                     }
-                    _ => {
-                        debug!("### Login error ###");
-                    }
+
                 }
-            }
-            None => {
-                debug!("### Not Match ! ###");
-            }
-
+            } 
         }
+
     }else if words == 3 {
+        // new supported format (since redis 6): "AUTH user password"
         let user = cmd_list.get(1).unwrap();
         let password = cmd_list.get(2).unwrap();
         match config.key_rule.get(&user.to_string()) {

@@ -599,7 +599,7 @@ fn validate_auth_cmd(config: &Arc<Config>, cmd_list: Vec<String>) -> Option<Stri
     }
 
     if words == 2 {
-        // old format: "AUTH passphrase"
+    // old format: "AUTH passphrase"
         let p = cmd_list.get(1).unwrap(); 
 
         // TODO: consider String::split_once() after stable
@@ -1028,6 +1028,7 @@ fn get_cmd_type(cmd_list: &Vec<String>) -> Option<CmdType> {
 
         Some(CmdType::CMD_KEYS) => { Some(CmdType::CMD_KEYS) }
         Some(CmdType::AUTH) => { Some(CmdType::AUTH) }
+        Some(CmdType::CONNECTION) => { Some(CmdType::CONNECTION) }
         Some(CmdType::ADMIN) => { Some(CmdType::ADMIN) }
         _ => None
     } 

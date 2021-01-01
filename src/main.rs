@@ -335,8 +335,8 @@ enum CmdType {
     CMD_WAIT,
     CMD_SCAN,
     CMD_PUBSUB,
-    CMD_PUB,
-    CMD_SUB,
+    CMD_PUB, // CMD chan1 chan2...
+    CMD_SUB, // CMD sub1 sub2...
 }
 
 

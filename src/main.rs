@@ -118,6 +118,8 @@ lazy_static! {
         m.insert(CmdType::KEY_WSRC_WDEST_1, validate_key_wsrc_wdest_1);
         m.insert(CmdType::KEY_DEST_KEY_LIST_1, validate_key_dest_key_list_1);
         m.insert(CmdType::KEY_DEST_KEY_LIST_2, validate_key_dest_key_list_2);
+        m.insert(CmdType::CMD_PUB, validate_pub);
+        m.insert(CmdType::CMD_SUB, validate_sub);
         m.insert(CmdType::ADMIN, validate_cmd_admin);
         m
     };
@@ -1016,6 +1018,69 @@ fn validate_key_r_key_list (key_rule: &KeyRule, cmd_list: &Vec<String>) -> Optio
 
 }
 
+fn validate_sub(key_rule: &KeyRule, cmd_list: &Vec<String>) -> Option<String> {
+
+    //CMD chan1 [chan2, chan3...]
+    let words = cmd_list.len();
+    if words < 2 {
+        return Some("-RUDYSSEY permission issue\r\n".to_string());
+    }
+
+    for i in 1..words {
+
+        let k = cmd_list.get(i).unwrap(); 
+        for re in &key_rule.sub_deny {
+            if re.is_match(k) == true {
+                return Some("-RUDYSSEY permission sub_deny match \r\n".to_string());
+            }
+        }
+        let mut deny = true;
+        for re in &key_rule.read_allow {
+            if re.is_match(k) == true {
+                deny = false;
+                break;
+            }
+        }
+
+        if deny {
+            return Some("-RUDYSSEY permission sub_allow doesn't match \r\n".to_string());
+        } 
+    }
+
+    None
+
+}
+
+fn validate_pub(key_rule: &KeyRule, cmd_list: &Vec<String>) -> Option<String> {
+
+    // CMD chan value 
+    let words = cmd_list.len();
+    if words < 2 {
+        return Some("-RUDYSSEY permission issue\r\n".to_string());
+    }
+
+
+    let k = cmd_list.get(1).unwrap(); 
+    for re in &key_rule.pub_deny {
+        if re.is_match(k) == true {
+            return Some("-RUDYSSEY permission pub_deny match \r\n".to_string());
+        }
+    }
+    let mut deny = true;
+    for re in &key_rule.pub_allow {
+        if re.is_match(k) == true {
+            deny = false;
+            break;
+        }
+    }
+
+    if deny {
+        return Some("-RUDYSSEY permission pub_allow doesn't match \r\n".to_string());
+    }
+
+    None
+
+}
 
 fn get_cmd_type(cmd_list: &Vec<String>) -> Option<CmdType> {
     let cmd_type = &CMD_TYPE;

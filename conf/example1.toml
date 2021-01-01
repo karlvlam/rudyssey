@@ -52,6 +52,24 @@ key_rule_write_allow = [
  ["user2", "wa2a", "wa2b"],
 ]
 
+chan_rule_sub_deny = [
+ ["user1", "sd1a", "sd1b", ""],
+ ["user2", "sd2a", "sd2b"],
+]
+
+chan_rule_sub_allow = [
+ ["user1", "sa1a", "sa1b", ""],
+ ["user2", "sa2a", "sa2b"],
+]
+
+chan_rule_pub_deny = [
+ ["user1", "pd1a", "pd1b", ""],
+ ["user2", "pd2a", "pd2b"],
+]
+chan_rule_pub_allow = [
+ ["user1", "pa1a", "pa1b", ""],
+ ["user2", "pa2a", "pa2b"],
+]
 # ["USER_NAME", "CMD_TYPE_1", "CMD_TYPE_2" ...] 
 cmd_rule_allow = [
  ["user1", "aaaa", "ADMIN"]

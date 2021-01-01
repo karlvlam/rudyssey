@@ -1035,7 +1035,7 @@ fn validate_sub(key_rule: &KeyRule, cmd_list: &Vec<String>) -> Option<String> {
             }
         }
         let mut deny = true;
-        for re in &key_rule.read_allow {
+        for re in &key_rule.sub_allow {
             if re.is_match(k) == true {
                 deny = false;
                 break;
@@ -1478,6 +1478,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
             let mut read_allow:Vec<Regex> = Vec::new();
             let mut write_deny:Vec<Regex> = Vec::new();
             let mut write_allow:Vec<Regex> = Vec::new();
+            let mut sub_deny:Vec<Regex> = Vec::new();
+            let mut sub_allow:Vec<Regex> = Vec::new();
+            let mut pub_deny:Vec<Regex> = Vec::new();
+            let mut pub_allow:Vec<Regex> = Vec::new();
             let mut cmd_allow:Vec<CmdType> = Vec::new();
 
             read_deny.push(Regex::new("rd1").unwrap());
@@ -1496,6 +1500,23 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
             write_allow.push(Regex::new("wa2").unwrap());
             write_allow.push(Regex::new("wa3").unwrap());
 
+            sub_deny.push(Regex::new("sd1").unwrap());
+            sub_deny.push(Regex::new("sd2").unwrap());
+            sub_deny.push(Regex::new("sd3").unwrap());
+
+            sub_allow.push(Regex::new("sa1").unwrap());
+            sub_allow.push(Regex::new("sa2").unwrap());
+            sub_allow.push(Regex::new("sa3").unwrap());
+
+            pub_deny.push(Regex::new("pd1").unwrap());
+            pub_deny.push(Regex::new("pd2").unwrap());
+            pub_deny.push(Regex::new("pd3").unwrap());
+
+            pub_allow.push(Regex::new("pa1").unwrap());
+            pub_allow.push(Regex::new("pa2").unwrap());
+            pub_allow.push(Regex::new("pa3").unwrap());
+
+
 
             let key_rule = KeyRule {
                 password: "abc123".to_string(),
@@ -1503,6 +1524,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 read_allow,
                 write_deny,
                 write_allow,
+                sub_deny,
+                sub_allow,
+                pub_deny,
+                pub_allow,
                 cmd_allow,
             };
 
@@ -1660,5 +1685,40 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
             assert_ne!(validate_key_wsrc_wdest_1(key_rule, c2), None);
 
         }
+        
+        #[test]
+        fn test_validate_sub() {
+
+            let key_rule = &get_key_rule();
+
+            /*** KEY_W_KEY_LIST,  CMD chan value ***/
+
+            let c1 = &get_cmd_list(vec!["cmd", "sa1", "sa2"]);
+            let c2 = &get_cmd_list(vec!["cmd", "sa1", "hihi"]);
+            let c3 = &get_cmd_list(vec!["cmd", "sa1", "sd1"]);
+
+            assert_eq!(validate_sub(key_rule, c1), None);
+            assert_ne!(validate_sub(key_rule, c2), None);
+            assert_ne!(validate_sub(key_rule, c3), None);
+
+        }
+
+        #[test]
+        fn test_validate_pub() {
+
+            let key_rule = &get_key_rule();
+
+            /*** KEY_W_KEY_LIST,  CMD chan value ***/
+
+            let c1 = &get_cmd_list(vec!["cmd", "pa1", "hihi"]);
+            let c2 = &get_cmd_list(vec!["cmd", "pd1", "hihi"]);
+            let c3 = &get_cmd_list(vec!["cmd", "chan_not_exist", "hihi"]);
+
+            assert_eq!(validate_pub(key_rule, c1), None);
+            assert_ne!(validate_pub(key_rule, c2), None);
+            assert_ne!(validate_pub(key_rule, c3), None);
+
+        }
+
 
     }

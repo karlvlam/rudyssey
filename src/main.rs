@@ -304,6 +304,10 @@ struct ConfigFile{
     key_rule_read_allow: Vec<Vec<String>>,
     key_rule_write_deny: Vec<Vec<String>>,
     key_rule_write_allow: Vec<Vec<String>>,
+    chan_rule_sub_deny: Vec<Vec<String>>,
+    chan_rule_sub_allow: Vec<Vec<String>>,
+    chan_rule_pub_deny: Vec<Vec<String>>,
+    chan_rule_pub_allow: Vec<Vec<String>>,
     cmd_rule_allow: Vec<Vec<String>>,
 }
 
@@ -343,6 +347,10 @@ struct KeyRule{
     read_allow: Vec<Regex>,
     write_deny: Vec<Regex>,
     write_allow: Vec<Regex>,
+    sub_deny: Vec<Regex>,
+    sub_allow: Vec<Regex>,
+    pub_deny: Vec<Regex>,
+    pub_allow: Vec<Regex>,
     cmd_allow: Vec<CmdType>,
 }
 
@@ -1346,12 +1354,20 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
             let mut read_allow:Vec<Regex> = Vec::new();
             let mut write_deny:Vec<Regex> = Vec::new();
             let mut write_allow:Vec<Regex> = Vec::new();
+            let mut sub_deny:Vec<Regex> = Vec::new();
+            let mut sub_allow:Vec<Regex> = Vec::new();
+            let mut pub_deny:Vec<Regex> = Vec::new();
+            let mut pub_allow:Vec<Regex> = Vec::new();
             let mut cmd_allow:Vec<CmdType> = Vec::new();
 
             parse_rule(&user, &config_file.key_rule_read_deny, &mut read_deny);
             parse_rule(&user, &config_file.key_rule_read_allow, &mut read_allow);
             parse_rule(&user, &config_file.key_rule_write_deny, &mut write_deny);
             parse_rule(&user, &config_file.key_rule_write_allow, &mut write_allow);
+            parse_rule(&user, &config_file.chan_rule_sub_deny, &mut sub_deny);
+            parse_rule(&user, &config_file.chan_rule_sub_allow, &mut sub_allow);
+            parse_rule(&user, &config_file.chan_rule_pub_deny, &mut pub_deny);
+            parse_rule(&user, &config_file.chan_rule_pub_allow, &mut pub_allow);
             parse_cmd_rule(&user, &config_file.cmd_rule_allow, &mut cmd_allow);
 
             let key_rule = KeyRule {
@@ -1360,6 +1376,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 read_allow,
                 write_deny,
                 write_allow,
+                sub_deny,
+                sub_allow,
+                pub_deny,
+                pub_allow,
                 cmd_allow,
             };
             m.insert(user, key_rule);

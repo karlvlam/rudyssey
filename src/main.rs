@@ -49,65 +49,55 @@ macro_rules! log {
 
 macro_rules! trace {
     ($($x:expr), *) => {
-        unsafe {
-            if LOG_LEVEL >= 9 {
-                let now: DateTime<Utc> = Utc::now().into();
-                let time =  now.format("%FT%T.%3f").to_string();
-                print!("{} [TRACE] ", &time);
-                println!($($x), *);
-            }
+        if unsafe{ LOG_LEVEL >= 9 } {
+            let now: DateTime<Utc> = Utc::now().into();
+            let time =  now.format("%FT%T.%3f").to_string();
+            print!("{} [TRACE] ", &time);
+            println!($($x), *);
         }
     };
 }
 
 macro_rules! debug {
     ($($x:expr), *) => {
-        unsafe {
-            if LOG_LEVEL >= 8 {
-                let now: DateTime<Utc> = Utc::now().into();
-                let time =  now.format("%FT%T.%3f").to_string();
-                print!("{} [DEBUG] ", &time);
-                println!($($x), *);
-            }
+        if unsafe{ LOG_LEVEL >= 8 } {
+            let now: DateTime<Utc> = Utc::now().into();
+            let time =  now.format("%FT%T.%3f").to_string();
+            print!("{} [DEBUG] ", &time);
+            println!($($x), *);
         }
     };
 }
 
 macro_rules! warn {
     ($($x:expr), *) => {
-        unsafe {
-            if LOG_LEVEL >= 7{
-                let now: DateTime<Utc> = Utc::now().into();
-                let time =  now.format("%FT%T.%3f").to_string();
-                print!("{} [WARN] ", &time);
-                println!($($x), *);
-            }
+        if unsafe{ LOG_LEVEL >= 7} {
+            let now: DateTime<Utc> = Utc::now().into();
+            let time =  now.format("%FT%T.%3f").to_string();
+            print!("{} [WARN] ", &time);
+            println!($($x), *);
         }
     };
 }
 
 macro_rules! error {
     ($($x:expr), *) => {
-        unsafe {
-            if LOG_LEVEL >= 6{
-                let now: DateTime<Utc> = Utc::now().into();
-                let time =  now.format("%FT%T.%3f").to_string();
-                print!("{} [ERROR] ", &time);
-                println!($($x), *);
-            }
+        if unsafe{ LOG_LEVEL >= 6 } {
+            let now: DateTime<Utc> = Utc::now().into();
+            let time =  now.format("%FT%T.%3f").to_string();
+            print!("{} [ERROR] ", &time);
+            println!($($x), *);
         }
     };
 }
 
 macro_rules! info {
     ($($x:expr), *) => {
-        unsafe {
-            if LOG_LEVEL >= 5{
-                let now: DateTime<Utc> = Utc::now().into();
-                let time =  now.format("%FT%T.%3f").to_string();
-                print!("{} [INFO] ", &time);
-                println!($($x), *);
-            }
+        if unsafe{ LOG_LEVEL >= 5 } {
+            let now: DateTime<Utc> = Utc::now().into();
+            let time =  now.format("%FT%T.%3f").to_string();
+            print!("{} [INFO] ", &time);
+            println!($($x), *);
         }
     };
 }
@@ -282,6 +272,14 @@ lazy_static! {
         m.insert("STRALGO", CmdType::CMD_STRALGO);
         m.insert("STRLEN", CmdType::KEY_R_1);
 
+        // Pubsub
+        m.insert("PUBSUB", CmdType::CMD_PUBSUB);
+        m.insert("PUNSUBSCRIBE", CmdType::CMD_PUBSUB);
+        m.insert("UNSUBSCRIBE", CmdType::CMD_PUBSUB);
+        m.insert("PSUBSCRIBE", CmdType::CMD_SUB);
+        m.insert("SUBSCRIBE", CmdType::CMD_SUB);
+        m.insert("PUBLISH", CmdType::CMD_PUB);
+
         // Transactions
         m.insert("DISCARD", CmdType::TRANSACTION);
         m.insert("EXEC", CmdType::TRANSACTION);
@@ -332,6 +330,9 @@ enum CmdType {
     CMD_RANDOMKEY,
     CMD_WAIT,
     CMD_SCAN,
+    CMD_PUBSUB,
+    CMD_PUB,
+    CMD_SUB,
 }
 
 

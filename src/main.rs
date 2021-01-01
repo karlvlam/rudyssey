@@ -1101,6 +1101,9 @@ fn get_cmd_type(cmd_list: &Vec<String>) -> Option<CmdType> {
         Some(CmdType::KEY_W_KEY_LIST_L2) => { Some(CmdType::KEY_W_KEY_LIST_L2) }
 
         Some(CmdType::CMD_KEYS) => { Some(CmdType::CMD_KEYS) }
+        Some(CmdType::CMD_PUBSUB) => { Some(CmdType::CMD_PUBSUB) }
+        Some(CmdType::CMD_PUB) => { Some(CmdType::CMD_PUB) }
+        Some(CmdType::CMD_SUB) => { Some(CmdType::CMD_SUB) }
         Some(CmdType::AUTH) => { Some(CmdType::AUTH) }
         Some(CmdType::CONNECTION) => { Some(CmdType::CONNECTION) }
         Some(CmdType::ADMIN) => { Some(CmdType::ADMIN) }
@@ -1205,6 +1208,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                     | CmdType::KEY_W_1 | CmdType::KEY_W_KEY_LIST | CmdType::KEY_W_KEY_LIST_L2
                                                     | CmdType::KEY_W_KV_LIST | CmdType::KEY_WSRC_WDEST_1
                                                     | CmdType::KEY_DEST_KEY_LIST_1 | CmdType::KEY_DEST_KEY_LIST_2  
+                                                    | CmdType::CMD_PUB | CmdType::CMD_SUB
                                                     | CmdType::ADMIN
                                                     => {
                                                         let validate_fn = &VALIDATE_KEY_CMD.get(&cmdtype).unwrap();
@@ -1232,7 +1236,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                     }
 
                                                     // Public 
-                                                    CmdType::CONNECTION | CmdType::CMD_KEYS => {
+                                                    CmdType::CONNECTION | CmdType::CMD_KEYS | CmdType::CMD_PUBSUB => {
                                                         match server_stream.write(&buffer[cur_l..cur_r]).await {
                                                             Ok(_) => {}
                                                             Err(e) => {

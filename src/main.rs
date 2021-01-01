@@ -1691,7 +1691,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
             let key_rule = &get_key_rule();
 
-            /*** KEY_W_KEY_LIST,  CMD chan value ***/
+            /*** CMD_SUB,  CMD chan1 [chain2, chain3...] ***/
 
             let c1 = &get_cmd_list(vec!["cmd", "sa1", "sa2"]);
             let c2 = &get_cmd_list(vec!["cmd", "sa1", "hihi"]);
@@ -1708,7 +1708,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
             let key_rule = &get_key_rule();
 
-            /*** KEY_W_KEY_LIST,  CMD chan value ***/
+            /*** CMD_PUB,  CMD chan value ***/
 
             let c1 = &get_cmd_list(vec!["cmd", "pa1", "hihi"]);
             let c2 = &get_cmd_list(vec!["cmd", "pd1", "hihi"]);

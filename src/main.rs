@@ -416,6 +416,7 @@ async fn main() {
                         listener
                             .incoming()
                             .for_each_concurrent(/* limit */ None, |stream| async {
+                                kill_connection(stream.unwrap());
                             }).await;
                     }
                     Err(_e) => {
@@ -448,7 +449,7 @@ async fn main() {
                         }
                         Err(e) => {
                             error!("{}", e);
-                            client_stream.shutdown(Shutdown::Both);
+                            kill_connection(client_stream);
                         }
                     }
 
@@ -461,6 +462,12 @@ async fn main() {
         }
     }
 
+}
+
+fn kill_connection(stream: TcpStream) {
+    for i in 1..=3 {
+        stream.shutdown(Shutdown::Both);
+    }
 }
 
 async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, config: &Arc<Config>){
@@ -492,8 +499,9 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
         copy_stream(server_stream_2, client_stream_2, "Server").await;
 
         // close both streams
-        client_stream_3.shutdown(Shutdown::Both);
-        server_stream_3.shutdown(Shutdown::Both);
+        //
+        kill_connection(server_stream_3);
+        kill_connection(client_stream_3);
         info!("[conn] server disconnected!");
     });
 
@@ -502,8 +510,8 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
         client_to_server(client_stream, server_stream, "Client", &config).await;
 
         // close both streams
-        client_stream_4.shutdown(Shutdown::Both);
-        server_stream_4.shutdown(Shutdown::Both);
+        kill_connection(server_stream_4);
+        kill_connection(client_stream_4);
         //copy_stream(client_stream, server_stream, "Client").await;
         info!("[conn] client disconnected!");
     });

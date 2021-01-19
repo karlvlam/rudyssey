@@ -8,7 +8,7 @@ use async_std::io::prelude::*;
 use async_std::io;
 use async_std::net::TcpListener;
 use async_std::net::TcpStream;
-use async_std::sync::{Arc, Mutex, channel};
+use async_std::sync::{Arc, Mutex};
 //use async_std::task;
 use async_std::task::{spawn, sleep};
 use futures::stream::StreamExt;

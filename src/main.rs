@@ -27,6 +27,7 @@ use bcrypt::{hash, verify};
 
 
 const BUFFER_SIZE: usize = 1024 * 64;
+const IDEL_TIMEOUT_MIN: i64 = 60;
 
 const ARRAY:u8 = "*".as_bytes()[0];
 const STRING:u8 = "$".as_bytes()[0];
@@ -298,6 +299,7 @@ struct ConfigFile{
     auth: Vec<Vec<String>>,
     log_level: Option<u8>,
     default_user: Option<String>,
+    idle_timeout: Option<i64>,
     redis_url: String,
     listen_url: String,
     healthcheck_listen_url: Option<String>,
@@ -361,6 +363,7 @@ struct Config {
     listen_url: String,
     redis_url: String,
     key_rule: HashMap<String, KeyRule>,
+    idle_timeout: i64,
 }
 
 
@@ -400,6 +403,18 @@ async fn main() {
         listen_url: config_file.listen_url.clone(),
         redis_url: config_file.redis_url.clone(), 
         key_rule: get_key_rule(&config_file),
+        idle_timeout: match(config_file.idle_timeout) {
+            Some(timeout) => {
+                if timeout < IDEL_TIMEOUT_MIN{
+                    IDEL_TIMEOUT_MIN 
+                }else{
+                    timeout
+                }
+            }
+            None => {
+                IDEL_TIMEOUT_MIN 
+            }
+        },
         //cmd_type: gen_cmd_type(),
     };
     trace!("{:#?}", &config);
@@ -515,13 +530,14 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
 
     let client_stream_5 = client_stream.clone();
     let server_stream_5 = server_stream.clone();
-    let config = config.clone();
+    let config_1 = config.clone();
+    let config_2 = config.clone();
 
 
     spawn(async move {
         info!("[conn] server connected!");
         // !!! very slow, only use for debugging !!!
-        stream_to_stream(server_stream_2, client_stream_2, "Server").await; 
+        stream_to_stream(server_stream_2, client_stream_2, "Server", &config_1).await; 
 
         // io::copy -> just forward any data from server to client
         //copy_stream(server_stream_2, client_stream_2, "Server").await;
@@ -535,7 +551,7 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
 
     spawn(async move {
         info!("[conn] client connected!");
-        client_to_server(client_stream, server_stream, "Client", &config).await;
+        client_to_server(client_stream, server_stream, "Client", &config_2).await;
 
         // close both streams
         kill_connection(server_stream_4);
@@ -1357,7 +1373,8 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
     }
 
     // copy, slow and debug
-    async fn stream_to_stream(mut stream_a: TcpStream,mut stream_b: TcpStream, chan:&str) {
+    //config: &Arc<Config>
+    async fn stream_to_stream(mut stream_a: TcpStream,mut stream_b: TcpStream, chan:&str, config: &Arc<Config>) {
         let mut buffer = [0; BUFFER_SIZE];
 
         let check_time_1 = Arc::new(Mutex::new(Utc::now().timestamp()));
@@ -1365,18 +1382,19 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
         let server_stream = stream_a.clone();
         let client_stream = stream_b.clone();
+        let idle_timeout = config.idle_timeout;
 
         spawn(async move {
             loop {
-                sleep(Duration::from_secs(5)).await;
+                sleep(Duration::from_millis(5197)).await;
                 let current_time = Utc::now().timestamp();
                 let last_time = *check_time_1.lock().await;
                 let diff_time = current_time - last_time;
                 //info!("==== Time diff: {}", diff_time);
-                if (diff_time >= 180) {
+                if (diff_time >= idle_timeout) {
                     kill_connection(server_stream);
                     kill_connection(client_stream);
-                    info!("==== Time diff > 60, exit!");
+                    info!("==== Time diff > {} ({}), exit!", idle_timeout, diff_time);
                     break;
                 }
 

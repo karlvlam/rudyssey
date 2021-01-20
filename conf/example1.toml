@@ -22,6 +22,7 @@ listen_url = "127.0.0.1:7878"
 
 # health check address, optional
 #healthcheck_listen_url = "127.0.0.1:8000"
+idel_timeout = 66
 
 # ["USER_NAME", "PASSWORD"] 
 auth = [

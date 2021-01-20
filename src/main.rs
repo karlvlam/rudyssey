@@ -1415,6 +1415,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                     //debug!("==== Reply ====");
                     //debug!("{}", String::from_utf8_lossy(&buffer[0..byte_count]));
                     match stream_b.write(&buffer[0..byte_count]).await {
+                        Err(e) => {
+                            error!("{} stream=> Error: {:?}",chan, e);
+                            break;
+                        }
                         _ => {}
                     }
                 }

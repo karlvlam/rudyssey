@@ -614,6 +614,13 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
 
     // get the command params
     for _i in 0..array_len {
+        // avoid index out of range
+        if cur_r >= cmd_len {
+            debug!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
+            debug!("{}",String::from_utf8_lossy(&cmd));
+            break;
+        }
+
         if cmd[cur_r] != STRING {
             debug!("!!! NOT STRING !!!");
             return (Some("-FORMAT ERROR : NOT STRING".to_string()), None, cur_r+1);

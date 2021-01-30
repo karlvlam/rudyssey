@@ -27,7 +27,7 @@ use bcrypt::{hash, verify};
 
 
 //const TCP_BUFFER_SIZE: usize = 4096;
-const TCP_BUFFER_SIZE: usize = 128;
+const TCP_BUFFER_SIZE: usize = 1024 * 4;
 const BUFFER_SIZE: usize = 1024 * 64;
 const IDEL_TIMEOUT_MIN: i64 = 60;
 
@@ -590,7 +590,6 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         return (Some("-Err Not Array".to_string()), None, cur_r + 1);
     }
 
-    info!("=== parse_cmd -> 1");
     cur_l += 1;
     cur_r += 1;
 
@@ -614,7 +613,6 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         cur_r += 1;
     } 
 
-    info!("=== parse_cmd -> 2");
 
     // get the command params
     for _i in 0..array_len {
@@ -644,11 +642,8 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
                 }
                 //debug!("Param LEN = {}", param_len);
                 if cur_r+1 >= cmd_len {
-                    info!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
-                    //info!("GET_PARAM_STRING -> {}",String::from_utf8_lossy(&cmd));
-                    info!("GET_PARAM_STRING -> ...");
+                    trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
                     return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
-                    break;
                 }
 
 
@@ -666,11 +661,8 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         // get param_string
         cur_r += param_len as usize;
         if cur_r >= cmd_len || cur_l >= cur_r {
-            info!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
-            //info!("GET_PARAM_STRING -> {}",String::from_utf8_lossy(&cmd));
-            info!("GET_PARAM_STRING -> ...");
+            trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
             return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
-            break;
         }
 
         let param_string = String::from_utf8_lossy(&cmd[cur_l..cur_r]);
@@ -678,9 +670,8 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         debug!("Param String = '{}'", param_string);
 
         if cur_r+1 >= cmd_len {
-            info!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
+            trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
             //info!("GET_PARAM_STRING -> {}",String::from_utf8_lossy(&cmd));
-            info!("GET_PARAM_STRING -> ...");
             return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
             break;
         }
@@ -697,9 +688,6 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
     }
 
-    info!("=== parse_cmd -> 9");
-    info!("=== parse_cmd -> OK");
-    info!("=== parse_cmd -> array_len: {}, cmd_list.len: {}", array_len, cmd_list.len());
     (None, Some(cmd_list), cur_r)
 }
 
@@ -1245,16 +1233,16 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 let cmd = String::from_utf8_lossy(&buffer[0..byte_count]);
                 debug!("{}", &cmd);
                 if byte_count >= 50 {
-                    info!("==== BYTE_COUNT => {} | {}", byte_count, String::from_utf8_lossy(&tcp_buffer[0..50]).replace("\r\n", " "));
+                    trace!("==== BYTE_COUNT => {} | {}", byte_count, String::from_utf8_lossy(&tcp_buffer[0..50]).replace("\r\n", " "));
                 }
                 let mut cur_l:usize = 0;
                 let mut cur_r:usize = buffer_idx;
-                info!("=== BUFFER: {}, {}", cur_l, cur_r);
+                trace!("=== BUFFER: {}, {}", cur_l, cur_r);
                 while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
                         (Some(s), None, parse_count) => {
                             if s == "GET_PARAM_ERROR".to_string() {
-                                info!("=== NEXT tcp_buffer");
+                                trace!("=== NEXT tcp_buffer");
                                 buffer_idx_reset = false;
                                 break;
                             }
@@ -1329,11 +1317,8 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                     => {
                                                         let validate_fn = &VALIDATE_KEY_CMD.get(&cmdtype).unwrap();
                                                         //match validate_key_r_1(key_rule, &cmd_list) {
-                                                        info!("=== cmd_ok -> 0");
                                                         match validate_fn(key_rule, &cmd_list) {
                                                             None => {
-                                                                info!("=== cmd_ok -> write");
-                                                                info!("=== cmd -> {:?}", &cmd_list);
                                                                 match server_stream.write(&buffer[cur_l..cur_r]).await {
                                                                     Ok(_) => {}
                                                                     Err(e) => {
@@ -1343,7 +1328,6 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                                 }
                                                             }
                                                             Some(s) => {
-                                                                info!("=== cmd_ok -> return error");
                                                                 match client_stream.write(s.as_bytes()).await {
                                                                     Ok(_) => {}
                                                                     Err(e) => {
@@ -1413,7 +1397,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                         }
                     }
                     if buffer_idx_reset == true {
-                        info!("=== buffer_idx reset");
+                        debug!("=== buffer_idx reset");
                         buffer_idx = 0;
                     }
 

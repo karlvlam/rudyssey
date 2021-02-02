@@ -40,271 +40,10 @@ const ERR_LOGIN_FAIL:&str = "-WRONGPASS invalid username-password pair\r\n";
 const ERR_CMD_NOT_SUPPORT:&str = "-RUDYSSEY command not supported\r\n";
 
 include!("logger.rs");
-
-lazy_static! {
-
-    //static ref LOG_LEVEL:LogLevel = get_log_level(8);
-
-    static ref VALIDATE_KEY_CMD: HashMap<CmdType, fn(&KeyRule, &Vec<String>) -> Option<String> > = {
-        let mut m:HashMap<CmdType, fn(&KeyRule, &Vec<String>) -> Option<String> > = HashMap::new();
-        m.insert(CmdType::KEY_R_1, validate_key_r_1);
-        m.insert(CmdType::KEY_R_KEY_LIST, validate_key_r_key_list);
-        m.insert(CmdType::KEY_W_1, validate_key_w_1);
-        m.insert(CmdType::KEY_W_KEY_LIST, validate_key_w_key_list);
-        m.insert(CmdType::KEY_W_KEY_LIST_L2, validate_key_w_key_list_l2);
-        m.insert(CmdType::KEY_W_KV_LIST, validate_key_w_kv_list);
-        m.insert(CmdType::KEY_WSRC_WDEST_1, validate_key_wsrc_wdest_1);
-        m.insert(CmdType::KEY_DEST_KEY_LIST_1, validate_key_dest_key_list_1);
-        m.insert(CmdType::KEY_DEST_KEY_LIST_2, validate_key_dest_key_list_2);
-        m.insert(CmdType::CMD_PUB, validate_pub);
-        m.insert(CmdType::CMD_SUB, validate_sub);
-        m.insert(CmdType::ADMIN, validate_cmd_admin);
-        m
-    };
-
-    #[derive(Debug)]
-    static ref CMD_TYPE: HashMap<&'static str, CmdType> = {
-        let mut m = HashMap::new();
-        m.insert("AUTH", CmdType::AUTH);
-
-        // Connection
-        m.insert("ECHO", CmdType::CONNECTION);
-        m.insert("PING", CmdType::CONNECTION);
-        m.insert("CLIENT", CmdType::CONNECTION);
-        m.insert("QUIT", CmdType::CONNECTION);
-        m.insert("RESET", CmdType::CONNECTION);
-
-        // Admin
-        m.insert("INFO", CmdType::ADMIN);
-        m.insert("CONFIG", CmdType::ADMIN);
-        m.insert("MONITOR", CmdType::ADMIN);
-        m.insert("FLUSHALL", CmdType::ADMIN);
-        m.insert("FLUSHDB", CmdType::ADMIN);
-
-
-        // GEO
-        m.insert("GEOADD", CmdType::KEY_W_1);
-        m.insert("GEOHASH", CmdType::KEY_R_1);
-        m.insert("GEOPOS", CmdType::KEY_R_1);
-        m.insert("GEODIST", CmdType::KEY_R_1);
-        m.insert("GEORADIUS", CmdType::KEY_R_1);
-        m.insert("GEORADIUSBYMEMBER", CmdType::KEY_R_1);
-
-        // HyperLogLog
-        m.insert("PFADD", CmdType::KEY_W_1);
-        m.insert("PFCOUNT", CmdType::KEY_R_KEY_LIST);
-        m.insert("PFMERGE", CmdType::KEY_DEST_KEY_LIST_1);
-
-        // Hashes
-        m.insert("HDEL", CmdType::KEY_W_1);
-        m.insert("HEXISTS", CmdType::KEY_R_1);
-        m.insert("HGET", CmdType::KEY_R_1);
-        m.insert("HGETALL", CmdType::KEY_R_1);
-        m.insert("HINCRBY", CmdType::KEY_W_1);
-        m.insert("HINCRBYFLOAT", CmdType::KEY_W_1);
-        m.insert("HKEYS", CmdType::KEY_R_1);
-        m.insert("HLEN", CmdType::KEY_R_1);
-        m.insert("HMGET", CmdType::KEY_R_1);
-        m.insert("HMSET", CmdType::KEY_W_1);
-        m.insert("HSET", CmdType::KEY_W_1);
-        m.insert("HSETNX", CmdType::KEY_W_1);
-        m.insert("HSTRLEN", CmdType::KEY_R_1);
-        m.insert("HVALS", CmdType::KEY_R_1);
-        m.insert("HSCAN", CmdType::KEY_R_1);
-
-        // Keys 
-        m.insert("COPY", CmdType::KEY_WSRC_WDEST_1);
-        m.insert("DEL", CmdType::KEY_W_KEY_LIST);
-        m.insert("DUMP", CmdType::KEY_R_1);
-        m.insert("EXISTS", CmdType::KEY_R_KEY_LIST);
-        m.insert("EXPIRE", CmdType::KEY_W_1);
-        m.insert("EXPIREAT", CmdType::KEY_W_1);
-        m.insert("KEYS", CmdType::CMD_KEYS);
-        // skip MIGRATE
-        m.insert("MOVE", CmdType::KEY_W_1);
-        // skip OBJECT 
-        m.insert("PERSIST", CmdType::KEY_W_1);
-        m.insert("PEXPIRE", CmdType::KEY_W_1);
-        m.insert("PEXPIREAT", CmdType::KEY_W_1);
-        m.insert("PTTL", CmdType::KEY_R_1);
-        m.insert("RANDOMKEY", CmdType::CMD_RANDOMKEY); // ?
-        m.insert("RENAME", CmdType::KEY_W_KEY_LIST);
-        m.insert("RENAMEX", CmdType::KEY_W_KEY_LIST);
-        m.insert("RESTORE", CmdType::KEY_W_1);
-        m.insert("SORT", CmdType::KEY_W_1);
-        m.insert("TOUCH", CmdType::KEY_W_KEY_LIST);
-        m.insert("TTL", CmdType::KEY_R_1);
-        m.insert("TYPE", CmdType::KEY_R_1);
-        m.insert("UNLINK", CmdType::KEY_W_KEY_LIST);
-        m.insert("WAIT", CmdType::CMD_WAIT); //?
-        m.insert("SCAN", CmdType::CMD_SCAN); //?
-
-        // Lists
-        m.insert("BLPOP", CmdType::KEY_W_KEY_LIST_L2);
-        m.insert("BRPOP", CmdType::KEY_W_KEY_LIST_L2);
-        m.insert("BRPOPLPUSH", CmdType::KEY_WSRC_WDEST_1);
-        m.insert("BLMOVE", CmdType::KEY_WSRC_WDEST_1);
-        m.insert("LINDEX", CmdType::KEY_R_1);
-        m.insert("LINSERT", CmdType::KEY_W_1);
-        m.insert("LLEN", CmdType::KEY_R_1);
-        m.insert("LPOP", CmdType::KEY_W_1);
-        m.insert("LPOS", CmdType::KEY_R_1);
-        m.insert("LPUSH", CmdType::KEY_W_1);
-        m.insert("LPUSHX", CmdType::KEY_W_1);
-        m.insert("LRANGE", CmdType::KEY_R_1);
-        m.insert("LREM", CmdType::KEY_W_1);
-        m.insert("LSET", CmdType::KEY_W_1);
-        m.insert("LTRIM", CmdType::KEY_W_1);
-        m.insert("RPOP", CmdType::KEY_W_1);
-        m.insert("RPOPLPUSH", CmdType::KEY_WSRC_WDEST_1);
-        m.insert("LMOVE", CmdType::KEY_WSRC_WDEST_1);
-        m.insert("RPUSH", CmdType::KEY_W_1);
-        m.insert("RPUSHX", CmdType::KEY_W_1);
-
-        // Sets 
-        m.insert("SADD", CmdType::KEY_W_1);
-        m.insert("SCARD", CmdType::KEY_R_1);
-        m.insert("SDIFF", CmdType::KEY_R_KEY_LIST);
-        m.insert("SDIFFSTORE", CmdType::KEY_DEST_KEY_LIST_1);
-        m.insert("SINTER", CmdType::KEY_R_KEY_LIST);
-        m.insert("SINTERSTORE", CmdType::KEY_DEST_KEY_LIST_1);
-        m.insert("SISMEMBER", CmdType::KEY_R_1);
-        m.insert("SMISMEMBER", CmdType::KEY_R_1);
-        m.insert("SMEMBERS", CmdType::KEY_R_1);
-        m.insert("SMOVE", CmdType::KEY_WSRC_WDEST_1);
-        m.insert("SPOP", CmdType::KEY_W_1);
-        m.insert("SRANDMEMBER", CmdType::KEY_R_1);
-        m.insert("SREM", CmdType::KEY_W_1);
-        m.insert("SUNION", CmdType::KEY_R_KEY_LIST);
-        m.insert("SUNIONSTORE", CmdType::KEY_DEST_KEY_LIST_1);
-        m.insert("SSCAN", CmdType::KEY_W_1);
-
-        // Strings
-        m.insert("APPEND", CmdType::KEY_W_1);
-
-        m.insert("BITCOUNT", CmdType::KEY_R_1);
-        m.insert("BITFIELD", CmdType::KEY_W_1);
-        m.insert("BITTOP", CmdType::KEY_DEST_KEY_LIST_2);
-
-        m.insert("DECR", CmdType::KEY_W_1);
-        m.insert("DECRBY", CmdType::KEY_W_1);
-
-        m.insert("GET", CmdType::KEY_R_1);
-        m.insert("GETBIT", CmdType::KEY_R_1);
-        m.insert("GETRANGE", CmdType::KEY_R_1);
-        m.insert("GETSET", CmdType::KEY_W_1);
-
-        m.insert("INC", CmdType::KEY_W_1);
-        m.insert("INCRBY", CmdType::KEY_W_1);
-        m.insert("INCRBYFLOAT", CmdType::KEY_W_1);
-
-        m.insert("MGET", CmdType::KEY_R_KEY_LIST);
-        m.insert("MSET", CmdType::KEY_W_KV_LIST);
-        m.insert("MSETNX", CmdType::KEY_W_KV_LIST);
-
-        m.insert("PSETEX", CmdType::KEY_W_1);
-
-        m.insert("SET", CmdType::KEY_W_1);
-        m.insert("SETBIT", CmdType::KEY_W_1);
-        m.insert("SETEX", CmdType::KEY_W_1);
-        m.insert("SETNX", CmdType::KEY_W_1);
-        m.insert("SETRANGE", CmdType::KEY_W_1);
-        m.insert("STRALGO", CmdType::CMD_STRALGO);
-        m.insert("STRLEN", CmdType::KEY_R_1);
-
-        // Pubsub
-        m.insert("PUBSUB", CmdType::CMD_PUBSUB);
-        m.insert("PUNSUBSCRIBE", CmdType::CMD_PUBSUB);
-        m.insert("UNSUBSCRIBE", CmdType::CMD_PUBSUB);
-        m.insert("PSUBSCRIBE", CmdType::CMD_SUB);
-        m.insert("SUBSCRIBE", CmdType::CMD_SUB);
-        m.insert("PUBLISH", CmdType::CMD_PUB);
-
-        // Transactions
-        m.insert("DISCARD", CmdType::TRANSACTION);
-        m.insert("EXEC", CmdType::TRANSACTION);
-        m.insert("MULTI", CmdType::TRANSACTION);
-        m.insert("UNWATCH", CmdType::TRANSACTION);
-        m.insert("WATCH", CmdType::TRANSACTION);
-        m
-    };
-}
-
-static mut LOG_LEVEL:u8 = 0;
-
-#[derive(Deserialize, Debug)]
-struct ConfigFile{
-    auth: Vec<Vec<String>>,
-    log_level: Option<u8>,
-    default_user: Option<String>,
-    idle_timeout: Option<i64>,
-    redis_url: String,
-    listen_url: String,
-    healthcheck_listen_url: Option<String>,
-    key_rule_read_deny: Vec<Vec<String>>,
-    key_rule_read_allow: Vec<Vec<String>>,
-    key_rule_write_deny: Vec<Vec<String>>,
-    key_rule_write_allow: Vec<Vec<String>>,
-    chan_rule_sub_deny: Vec<Vec<String>>,
-    chan_rule_sub_allow: Vec<Vec<String>>,
-    chan_rule_pub_deny: Vec<Vec<String>>,
-    chan_rule_pub_allow: Vec<Vec<String>>,
-    cmd_rule_allow: Vec<Vec<String>>,
-}
-
-
-#[derive(Debug)]
-#[allow(non_camel_case_types)]
-#[derive(PartialEq, Eq, Hash)]
-enum CmdType {
-    AUTH,
-    ADMIN,
-    TRANSACTION,
-    CONNECTION,
-    KEY_R_1, // CMD key
-    KEY_R_KEY_LIST, // CMD key [key2 key3 ...]
-    KEY_W_1,  // CMD key ...
-    KEY_W_KEY_LIST, // CMD key1 [key2,key3...]
-    KEY_W_KEY_LIST_L2, // CMD [key1, key2...] param1
-    KEY_W_KV_LIST, // CMD key1 value1 [key2 value2 ...]
-    KEY_DEST_KEY_LIST_1, // CMD w1 [r1, r2...]
-    KEY_DEST_KEY_LIST_2, // CMD param1 w1 [r1, r2...]
-    KEY_WSRC_WDEST_1, // CMD w1 w2 [param1, param2...] 
-    CMD_STRALGO,
-    CMD_KEYS,
-    CMD_RANDOMKEY,
-    CMD_WAIT,
-    CMD_SCAN,
-    CMD_PUBSUB,
-    CMD_PUB, // CMD chan1 chan2...
-    CMD_SUB, // CMD sub1 sub2...
-}
-
-
-#[derive(Debug)]
-struct KeyRule{
-    password: String,
-    read_deny: Vec<Regex>,
-    read_allow: Vec<Regex>,
-    write_deny: Vec<Regex>,
-    write_allow: Vec<Regex>,
-    sub_deny: Vec<Regex>,
-    sub_allow: Vec<Regex>,
-    pub_deny: Vec<Regex>,
-    pub_allow: Vec<Regex>,
-    cmd_allow: Vec<CmdType>,
-}
-
-#[derive(Debug)]
-struct Config {
-    default_user: Option<String>,
-    listen_url: String,
-    redis_url: String,
-    key_rule: HashMap<String, KeyRule>,
-    idle_timeout: i64,
-}
-
-
+include!("static.rs");
+include!("data.rs");
+include!("rules.rs");
+include!("test.rs");
 
 #[async_std::main]
 async fn main() {
@@ -384,7 +123,7 @@ async fn main() {
     }   
 
 
-   
+
     // Redis Proxy listener
     match TcpListener::bind(&config.listen_url).await {
         Ok(listener) => {
@@ -403,7 +142,7 @@ async fn main() {
                             error!("{}", e);
                             kill_connection(client_stream);
                         }
-                    }
+                }
 
                 })
             .await;
@@ -499,10 +238,10 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
     });
 
     /*
-    spawn(async move {
-        judge_connection(server_stream_5, client_stream_5).await;
-    });
-    */
+       spawn(async move {
+       judge_connection(server_stream_5, client_stream_5).await;
+       });
+       */
 
 }
 
@@ -635,7 +374,7 @@ fn validate_auth_cmd(config: &Arc<Config>, cmd_list: Vec<String>) -> Option<Stri
     }
 
     if words == 2 {
-    // old format: "AUTH passphrase"
+        // old format: "AUTH passphrase"
         let p = cmd_list.get(1).unwrap(); 
 
         // TODO: consider String::split_once() after stable
@@ -1418,119 +1157,3 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
     }
 
-    fn get_key_rule(config_file: &ConfigFile) -> HashMap<String, KeyRule> {
-        fn parse_rule(user: &String, rule: &Vec<Vec<String>>, target_rule: &mut Vec<Regex>) {
-            for rule_list in rule {
-                if rule_list.len() < 2 {
-                    continue;
-                }
-                match rule_list.get(0) {
-                    None => {
-                        continue;
-                    }
-                    Some(n) => {
-                        if n != user {
-                            continue;
-                        }
-                    }
-                }
-                for j in 1..rule_list.len() {
-                    match rule_list.get(j) {
-                        None => {
-                            continue;
-                        }
-                        Some(s) => {
-                            let re = Regex::new(&s).unwrap();
-                            target_rule.push(re);
-                        }
-                    }
-
-                }
-            }
-
-        }
-
-        fn parse_cmd_rule(user: &String, rule: &Vec<Vec<String>>, target_rule: &mut Vec<CmdType>) {
-            for rule_list in rule {
-                if rule_list.len() < 2 {
-                    continue;
-                }
-                match rule_list.get(0) {
-                    None => {
-                        continue;
-                    }
-                    Some(n) => {
-                        if n != user {
-                            continue;
-                        }
-                    }
-                }
-                for j in 1..rule_list.len() {
-                    match rule_list.get(j) {
-                        None => {
-                            continue;
-                        }
-                        Some(s) => {
-                            match s.as_str() {
-                                "ADMIN" => { target_rule.push(CmdType::ADMIN); }
-                                "TRANSACTION" => { target_rule.push(CmdType::TRANSACTION); }
-                                _ => {}
-                            }
-                        }
-                        _ => {
-                            continue;
-                        }
-                    }
-
-                }
-            }
-
-        }
-
-        //let config_file: ConfigFile = toml::from_str(&s).unwrap();
-        let mut m:HashMap<String, KeyRule> = HashMap::new(); 
-        for i in &config_file.auth {
-            if i.len() < 2 {
-                continue;
-            }
-            let user = i.get(0).unwrap().to_string();
-            let password = i.get(1).unwrap().to_string();
-            let mut read_deny:Vec<Regex> = Vec::new();
-            let mut read_allow:Vec<Regex> = Vec::new();
-            let mut write_deny:Vec<Regex> = Vec::new();
-            let mut write_allow:Vec<Regex> = Vec::new();
-            let mut sub_deny:Vec<Regex> = Vec::new();
-            let mut sub_allow:Vec<Regex> = Vec::new();
-            let mut pub_deny:Vec<Regex> = Vec::new();
-            let mut pub_allow:Vec<Regex> = Vec::new();
-            let mut cmd_allow:Vec<CmdType> = Vec::new();
-
-            parse_rule(&user, &config_file.key_rule_read_deny, &mut read_deny);
-            parse_rule(&user, &config_file.key_rule_read_allow, &mut read_allow);
-            parse_rule(&user, &config_file.key_rule_write_deny, &mut write_deny);
-            parse_rule(&user, &config_file.key_rule_write_allow, &mut write_allow);
-            parse_rule(&user, &config_file.chan_rule_sub_deny, &mut sub_deny);
-            parse_rule(&user, &config_file.chan_rule_sub_allow, &mut sub_allow);
-            parse_rule(&user, &config_file.chan_rule_pub_deny, &mut pub_deny);
-            parse_rule(&user, &config_file.chan_rule_pub_allow, &mut pub_allow);
-            parse_cmd_rule(&user, &config_file.cmd_rule_allow, &mut cmd_allow);
-
-            let key_rule = KeyRule {
-                password,
-                read_deny,
-                read_allow,
-                write_deny,
-                write_allow,
-                sub_deny,
-                sub_allow,
-                pub_deny,
-                pub_allow,
-                cmd_allow,
-            };
-            m.insert(user, key_rule);
-        }
-
-        m    
-    }
-
-include!("test.rs");

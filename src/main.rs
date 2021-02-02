@@ -26,6 +26,8 @@ use chrono::DateTime;
 use bcrypt::{hash, verify};
 
 
+//const TCP_BUFFER_SIZE: usize = 4096;
+const TCP_BUFFER_SIZE: usize = 1024 * 4;
 const BUFFER_SIZE: usize = 1024 * 64;
 const IDEL_TIMEOUT_MIN: i64 = 60;
 
@@ -614,6 +616,13 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
 
     // get the command params
     for _i in 0..array_len {
+        // avoid index out of range
+        if cur_r >= cmd_len {
+            debug!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
+            debug!("{}",String::from_utf8_lossy(&cmd));
+            break;
+        }
+
         if cmd[cur_r] != STRING {
             debug!("!!! NOT STRING !!!");
             return (Some("-FORMAT ERROR : NOT STRING".to_string()), None, cur_r+1);
@@ -632,6 +641,12 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
                     return (Some("-FORMAT ERROR : param length".to_string()), None, cur_r+1);
                 }
                 //debug!("Param LEN = {}", param_len);
+                if cur_r+1 >= cmd_len {
+                    trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
+                    return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
+                }
+
+
                 if cmd[cur_r+1] != LF {
                     debug!("!!! FORMAT ERROR !!!");
                     return (Some("-FORMAT ERROR : CRLF".to_string()), None, cur_r+2);
@@ -645,15 +660,32 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         }
         // get param_string
         cur_r += param_len as usize;
+        if cur_r >= cmd_len || cur_l >= cur_r {
+            trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
+            return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
+        }
+
         let param_string = String::from_utf8_lossy(&cmd[cur_l..cur_r]);
         cmd_list.push(param_string.to_string());
         debug!("Param String = '{}'", param_string);
+
+        if cur_r+1 >= cmd_len {
+            trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
+            //info!("GET_PARAM_STRING -> {}",String::from_utf8_lossy(&cmd));
+            return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
+            break;
+        }
+
         if cmd[cur_r] != CR && cmd[cur_r+1] != LF {
             debug!("!!! FORMAT ERROR: param end CRLF !!!" );
             return (Some("-FORMAT ERROR : param end CRLF".to_string()), None, cur_r+2);
         }
         cur_r += 2; //skip CRLF
 
+    }
+
+    if cmd_list.len() + 1 < array_len {
+        return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
     }
 
     (None, Some(cmd_list), cur_r)
@@ -1170,7 +1202,9 @@ fn get_cmd_type(cmd_list: &Vec<String>) -> Option<CmdType> {
 
 async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpStream, chan:&str, config: &Arc<Config>) {
 
-    let mut buffer = [0; BUFFER_SIZE];
+    let mut tcp_buffer = [0; TCP_BUFFER_SIZE];
+    let mut buffer = [0; BUFFER_SIZE ];
+    let mut buffer_idx = 0;
 
     let mut validated_user:Option<String> = None;
     let mut key_rule:Option<&KeyRule> = None;
@@ -1182,23 +1216,36 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
     }
 
     loop{
-        match client_stream.read(&mut buffer).await{
+        match client_stream.read(&mut tcp_buffer).await{
             Ok(byte_count) => {
                 if byte_count == 0 {
                     // close connection
                     return;
                 }
+                let mut buffer_idx_reset = true;
+
+                buffer[buffer_idx..buffer_idx+byte_count].clone_from_slice(&tcp_buffer[0..byte_count]);
+                buffer_idx += byte_count;
 
 
                 debug!("==== CMD ====");
                 debug!("{:?}", &buffer[0..byte_count]);
                 let cmd = String::from_utf8_lossy(&buffer[0..byte_count]);
                 debug!("{}", &cmd);
+                if byte_count >= 50 {
+                    trace!("==== BYTE_COUNT => {} | {}", byte_count, String::from_utf8_lossy(&tcp_buffer[0..50]).replace("\r\n", " "));
+                }
                 let mut cur_l:usize = 0;
-                let mut cur_r:usize = byte_count;
+                let mut cur_r:usize = buffer_idx;
+                trace!("=== BUFFER: {}, {}", cur_l, cur_r);
                 while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
                         (Some(s), None, parse_count) => {
+                            if s == "GET_PARAM_ERROR".to_string() {
+                                trace!("=== NEXT tcp_buffer");
+                                buffer_idx_reset = false;
+                                break;
+                            }
                             debug!("CUR: {}, {}", cur_l, cur_r);
                             debug!("===== parse_cmd error");
                             match client_stream.write(s.as_bytes()).await {
@@ -1348,6 +1395,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                 }
                             }
                         }
+                    }
+                    if buffer_idx_reset == true {
+                        debug!("=== buffer_idx reset");
+                        buffer_idx = 0;
                     }
 
                 }

@@ -117,7 +117,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                                         //match validate_key_r_1(key_rule, &cmd_list) {
                                                         match validate_fn(key_rule, &cmd_list) {
                                                             None => {
-                                                                match server_stream.write(&buffer[cur_l..cur_r]).await {
+                                                                match server_stream.write(&buffer[cur_l..cur_l+parse_count]).await {
                                                                     Ok(_) => {}
                                                                     Err(e) => {
                                                                         error!("{}", e);
@@ -139,7 +139,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
                                                     // Public 
                                                     CmdType::CONNECTION | CmdType::CMD_KEYS | CmdType::CMD_PUBSUB => {
-                                                        match server_stream.write(&buffer[cur_l..cur_r]).await {
+                                                        match server_stream.write(&buffer[cur_l..cur_l+parse_count]).await {
                                                             Ok(_) => {}
                                                             Err(e) => {
                                                                 error!("{}", e);

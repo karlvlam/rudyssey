@@ -38,7 +38,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                     trace!("==== BYTE_COUNT => {} | {}", byte_count, String::from_utf8_lossy(&tcp_buffer[0..50]).replace("\r\n", " "));
                 }
                 trace!("=== BUFFER: {}, {}", cur_l, cur_r);
-                //log!("=== BUFFER: {}, {}", cur_l, cur_r);
+                log!("=== BUFFER: {}, {}", cur_l, cur_r);
                 while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
                         (Some(s), None, parse_count) => {
@@ -51,6 +51,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                             }
                             debug!("CUR: {}, {}", cur_l, cur_r);
                             debug!("===== parse_cmd error");
+                            log!("===== parse_cmd error");
                             match client_stream.write(s.as_bytes()).await {
                                 Ok(_) => {}
                                 Err(e) => {

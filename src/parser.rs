@@ -13,6 +13,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
     // check first char, should be *
     if cmd[cur_r] != ARRAY {
         debug!("!!! NOT ARRAY !!!");
+        //log!("!!! NOT ARRAY !!!");
         //log!("{}", String::from_utf8_lossy(&cmd));
         return (Some("-Err Not Array".to_string()), None, cur_r + 1);
     }
@@ -20,21 +21,32 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
     cur_l += 1;
     cur_r += 1;
 
+    if cur_r >= cmd_len {
+        return (Some("GET_PARAM_ERROR".to_string()), None, 0);
+    }
+
     // get arrary length
+    //log!("!!! while !!!");
     while cur_r < cmd_len {
+        //log!("!!! while !!!");
         if cmd[cur_r] == CR {
             array_len = String::from_utf8_lossy(&cmd[cur_l..cur_r]).parse().unwrap_or(0);
             debug!("Array LEN = {}", array_len);
             if array_len == 0 {
                 debug!("!!! FORMAT ERROR : Array Length !!!");
-                return (Some("-FORMAT ERROR : Array Length".to_string()), None, cur_r+1);
+                //log!("!!! FORMAT ERROR : Array Length !!!");
+                //return (Some("-FORMAT ERROR : Array Length".to_string()), None, cur_r+1);
+                return (Some("GET_PARAM_ERROR".to_string()), None, 0);
             }
             if cur_r+1 >= cmd_len {
-                return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
+                log!("GET_PARAM_ERROR");
+                return (Some("GET_PARAM_ERROR".to_string()), None, 0);
             }
             if cmd[cur_r+1] != LF {
                 debug!("!!! FORMAT ERROR !!!");
-                return (Some("-FORMAT ERROR : CRLF".to_string()), None, cur_r+2);
+                //log!("!!! FORMAT ERROR !!!");
+                //return (Some("-FORMAT ERROR : CRLF".to_string()), None, cur_r+2);
+                return (Some("GET_PARAM_ERROR".to_string()), None, 0);
             }
 
             cur_r += 2;
@@ -43,6 +55,9 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         cur_r += 1;
     } 
 
+    if cur_r >= cmd_len {
+        return (Some("GET_PARAM_ERROR".to_string()), None, 0);
+    }
 
     // get the command params
     for _i in 0..array_len {

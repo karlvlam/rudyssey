@@ -3,6 +3,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
     let mut tcp_buffer = [0; TCP_BUFFER_SIZE];
     let mut buffer = [0; BUFFER_SIZE ];
     let mut buffer_idx = 0;
+    let mut buffer_idx_last = 0;
 
     let mut validated_user:Option<String> = None;
     let mut key_rule:Option<&KeyRule> = None;
@@ -22,9 +23,11 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 }
                 let mut buffer_idx_reset = true;
 
-                log!("=== BUFFER_IDX: {}, {}", buffer_idx, buffer_idx+byte_count);
+                //log!("=== BUFFER_IDX: {}, {}", buffer_idx, buffer_idx+byte_count);
                 buffer[buffer_idx..buffer_idx+byte_count].clone_from_slice(&tcp_buffer[0..byte_count]);
+                let mut cur_l:usize = buffer_idx_last;
                 buffer_idx += byte_count;
+                let mut cur_r:usize = buffer_idx;
 
 
                 debug!("==== CMD ====");
@@ -34,16 +37,16 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 if byte_count >= 50 {
                     trace!("==== BYTE_COUNT => {} | {}", byte_count, String::from_utf8_lossy(&tcp_buffer[0..50]).replace("\r\n", " "));
                 }
-                let mut cur_l:usize = 0;
-                let mut cur_r:usize = buffer_idx;
                 trace!("=== BUFFER: {}, {}", cur_l, cur_r);
-                log!("=== BUFFER: {}, {}", cur_l, cur_r);
+                //log!("=== BUFFER: {}, {}", cur_l, cur_r);
                 while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
                         (Some(s), None, parse_count) => {
                             if s == "GET_PARAM_ERROR".to_string() {
                                 trace!("=== NEXT tcp_buffer");
+                                //buffer_idx = cur_l;
                                 buffer_idx_reset = false;
+                                buffer_idx_last = cur_l;
                                 break;
                             }
                             debug!("CUR: {}, {}", cur_l, cur_r);
@@ -58,9 +61,9 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                             cur_l += parse_count;
                         }
                         (None, Some(cmd_list), parse_count) => {
-                            log!("=== COUNT {}, {}", parse_count, cur_r-cur_l);
+                            //log!("=== COUNT {}, {}", parse_count, cur_r-cur_l);
                             if parse_count < cur_r - cur_l {
-                                buffer_idx_reset = false;
+                                //buffer_idx_reset = false;
                             }
                             debug!("CUR: {}, {}", cur_l, cur_r);
                             debug!("===== 2");
@@ -145,8 +148,8 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
                                                     // Public 
                                                     CmdType::CONNECTION | CmdType::CMD_KEYS | CmdType::CMD_PUBSUB => {
-                                                        log!("sent buffer {},{}", cur_l, cur_l+parse_count);
-                                                        log!("{}", String::from_utf8_lossy(&buffer[cur_l..cur_l+parse_count]));
+                                                        //log!("sent buffer {},{}", cur_l, cur_l+parse_count);
+                                                        //log!("{}", String::from_utf8_lossy(&buffer[cur_l..cur_l+parse_count]));
                                                         match server_stream.write(&buffer[cur_l..cur_l+parse_count]).await {
                                                             Ok(_) => {}
                                                             Err(e) => {
@@ -169,6 +172,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                                             }
 
                                         }
+                                        //log!("cur_l += parse_count");
                                         cur_l += parse_count;
 
                                     }
@@ -204,6 +208,9 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                     }
                     if buffer_idx_reset == true {
                         debug!("=== buffer_idx reset");
+                        //log!("=== buffer_idx reset");
+                        //log!("CUR: {}, {}", cur_l, cur_r);
+                        buffer_idx_last = 0;
                         buffer_idx = 0;
                     }
 

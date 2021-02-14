@@ -22,6 +22,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 }
                 let mut buffer_idx_reset = true;
 
+                log!("=== BUFFER_IDX: {}, {}", buffer_idx, buffer_idx+byte_count);
                 buffer[buffer_idx..buffer_idx+byte_count].clone_from_slice(&tcp_buffer[0..byte_count]);
                 buffer_idx += byte_count;
 
@@ -36,6 +37,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 let mut cur_l:usize = 0;
                 let mut cur_r:usize = buffer_idx;
                 trace!("=== BUFFER: {}, {}", cur_l, cur_r);
+                log!("=== BUFFER: {}, {}", cur_l, cur_r);
                 while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
                         (Some(s), None, parse_count) => {
@@ -56,6 +58,10 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                             cur_l += parse_count;
                         }
                         (None, Some(cmd_list), parse_count) => {
+                            log!("=== COUNT {}, {}", parse_count, cur_r-cur_l);
+                            if parse_count < cur_r - cur_l {
+                                buffer_idx_reset = false;
+                            }
                             debug!("CUR: {}, {}", cur_l, cur_r);
                             debug!("===== 2");
                             match get_cmd_type(&cmd_list){
@@ -139,6 +145,8 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
                                                     // Public 
                                                     CmdType::CONNECTION | CmdType::CMD_KEYS | CmdType::CMD_PUBSUB => {
+                                                        log!("sent buffer {},{}", cur_l, cur_l+parse_count);
+                                                        log!("{}", String::from_utf8_lossy(&buffer[cur_l..cur_l+parse_count]));
                                                         match server_stream.write(&buffer[cur_l..cur_l+parse_count]).await {
                                                             Ok(_) => {}
                                                             Err(e) => {

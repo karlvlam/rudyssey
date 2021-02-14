@@ -13,6 +13,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
     // check first char, should be *
     if cmd[cur_r] != ARRAY {
         debug!("!!! NOT ARRAY !!!");
+        log!("{}", String::from_utf8_lossy(&cmd));
         return (Some("-Err Not Array".to_string()), None, cur_r + 1);
     }
 
@@ -27,6 +28,9 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
             if array_len == 0 {
                 debug!("!!! FORMAT ERROR : Array Length !!!");
                 return (Some("-FORMAT ERROR : Array Length".to_string()), None, cur_r+1);
+            }
+            if cur_r+1 >= cmd_len {
+                return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
             }
             if cmd[cur_r+1] != LF {
                 debug!("!!! FORMAT ERROR !!!");
@@ -94,6 +98,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         let param_string = String::from_utf8_lossy(&cmd[cur_l..cur_r]);
         cmd_list.push(param_string.to_string());
         debug!("Param String = '{}'", param_string);
+        log!("Param String = '{}'", param_string);
 
         if cur_r+1 >= cmd_len {
             trace!("!!! cur_r >= cmd_len: {}, {} !!!", cur_r, cmd_len);
@@ -110,7 +115,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
 
     }
 
-    if cmd_list.len() + 1 < array_len {
+    if cmd_list.len()  < array_len {
         return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
     }
 

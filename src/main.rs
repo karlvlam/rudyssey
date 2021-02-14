@@ -27,7 +27,7 @@ use bcrypt::{hash, verify};
 
 
 //const TCP_BUFFER_SIZE: usize = 4096;
-const TCP_BUFFER_SIZE: usize = 1024 * 4;
+const TCP_BUFFER_SIZE: usize = 256 * 1;
 const BUFFER_SIZE: usize = 1024 * 64;
 const IDEL_TIMEOUT_MIN: i64 = 60;
 

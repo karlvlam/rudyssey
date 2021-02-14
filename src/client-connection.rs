@@ -24,6 +24,18 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                 let mut buffer_idx_reset = true;
 
                 //log!("=== BUFFER_IDX: {}, {}", buffer_idx, buffer_idx+byte_count);
+                //
+                if buffer_idx + byte_count >= BUFFER_SIZE {
+                    //log!("######## copy buffer");
+                    let mut buffer_tmp = [0; BUFFER_SIZE ];
+                    /* copy the buffer from the tail to the  temp buffer */
+                    buffer_tmp[0..buffer_idx-buffer_idx_last].clone_from_slice(&buffer[buffer_idx_last..buffer_idx]);
+                    /* reset buffer cusor */
+                    buffer_idx = buffer_idx-buffer_idx_last;
+                    buffer_idx_last = 0;
+                    /* copy the buffer to the head */
+                    buffer[0..buffer_idx].clone_from_slice(&buffer_tmp[0..buffer_idx]);
+                }
                 buffer[buffer_idx..buffer_idx+byte_count].clone_from_slice(&tcp_buffer[0..byte_count]);
                 let mut cur_l:usize = buffer_idx_last;
                 buffer_idx += byte_count;
@@ -38,7 +50,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
                     trace!("==== BYTE_COUNT => {} | {}", byte_count, String::from_utf8_lossy(&tcp_buffer[0..50]).replace("\r\n", " "));
                 }
                 trace!("=== BUFFER: {}, {}", cur_l, cur_r);
-                log!("=== BUFFER: {}, {}", cur_l, cur_r);
+                //log!("=== BUFFER: {}, {}", cur_l, cur_r);
                 while cur_l < cur_r {
                     match parse_cmd(&buffer[cur_l..cur_r]) {
                         (Some(s), None, parse_count) => {

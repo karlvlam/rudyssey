@@ -39,7 +39,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
                 return (Some("GET_PARAM_ERROR".to_string()), None, 0);
             }
             if cur_r+1 >= cmd_len {
-                log!("GET_PARAM_ERROR");
+                //log!("GET_PARAM_ERROR");
                 return (Some("GET_PARAM_ERROR".to_string()), None, 0);
             }
             if cmd[cur_r+1] != LF {
@@ -134,6 +134,7 @@ fn parse_cmd(cmd:&[u8]) -> (Option<String>, Option<Vec<String>>, usize) {
         return (Some("GET_PARAM_ERROR".to_string()), None, cur_r+2);
     }
 
+    //log!("$$$ {:?}", &cmd_list);
     (None, Some(cmd_list), cur_r)
 }
 

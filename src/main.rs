@@ -306,13 +306,7 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
      * for shutdown connection of another side
      * I know this is on99 stupid, any better solution?
      */
-    let client_stream_3 = client_stream.clone();
-    let server_stream_3 = server_stream.clone();
-    let client_stream_4 = client_stream.clone();
-    let server_stream_4 = server_stream.clone();
-
-    let client_stream_5 = client_stream.clone();
-    let server_stream_5 = server_stream.clone();
+    
     let config_1 = config.clone();
     let config_2 = config.clone();
 

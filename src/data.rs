@@ -71,3 +71,9 @@ enum CmdType {
     CMD_SUB, // CMD sub1 sub2...
 }
 
+struct ConnectionCommand{
+    id: u128,
+    cmd: u8,
+    client_stream: Option<TcpStream>,
+    server_stream: Option<TcpStream>,
+}

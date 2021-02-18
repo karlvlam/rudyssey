@@ -11,6 +11,7 @@ use async_std::net::TcpStream;
 use async_std::sync::{Arc, Mutex};
 //use async_std::task;
 use async_std::task::{spawn, sleep};
+use async_std::channel::*;
 use futures::stream::StreamExt;
 use std::time::Duration;
 use std::net::Shutdown;
@@ -24,6 +25,7 @@ use serde::Deserialize;
 use chrono::prelude::*;
 use chrono::DateTime;
 use bcrypt::{hash, verify};
+use uuid::Uuid;
 
 
 //const TCP_BUFFER_SIZE: usize = 4096;
@@ -48,6 +50,8 @@ include!("validation.rs");
 include!("parser.rs");
 include!("server-connection.rs");
 include!("client-connection.rs");
+
+
 
 #[async_std::main]
 async fn main() {
@@ -127,6 +131,8 @@ async fn main() {
     }   
 
 
+    let (s, r) = unbounded::<ConnectionCommand>();
+    manage_connection(r, s.clone(), config.idle_timeout).await;
 
     // Redis Proxy listener
     match TcpListener::bind(&config.listen_url).await {
@@ -140,6 +146,15 @@ async fn main() {
                     match TcpStream::connect(&config.redis_url).await {
                         Ok(server_stream) => { 
                             debug!("Connected!");
+                            let uuid = Uuid::new_v4();
+                            let cid = uuid.as_u128();
+                            
+                            s.send(ConnectionCommand{
+                                id:cid, cmd:0, 
+                                client_stream:Some(client_stream.clone()), 
+                                server_stream:Some(server_stream.clone())
+                            }).await;
+                          
                             handle_connection(client_stream, server_stream, &config).await;
                         }
                         Err(e) => {
@@ -163,6 +178,118 @@ fn kill_connection(stream: TcpStream) {
     for _i in 1..=3 {
         stream.shutdown(Shutdown::Both);
     }
+}
+
+async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionCommand>, idle_timeout: i64){
+    log!("start 1");
+    #[derive(Debug)]
+    struct Connection {
+        update_time: i64,
+        client_stream: TcpStream,
+        server_stream: TcpStream,
+    }
+    let scanner_sender = s.clone();
+   
+    spawn(async move {
+        let mut connection = HashMap::new();
+        loop {
+            match r.recv().await {
+                Ok(cmd) => {
+                    match cmd.cmd {
+                        0 => {
+                            info!("0 - register");
+                            info!("{}", cmd.id);
+                            let client_stream = cmd.client_stream.unwrap();
+                            let server_stream = cmd.server_stream.unwrap();
+                            connection.insert(cmd.id, 
+                                Connection{
+                                    update_time: Utc::now().timestamp(),
+                                    client_stream: client_stream, 
+                                    server_stream: server_stream
+                                }
+                            );
+                        }
+                        1 => {
+                            info!("1 - scan");
+                            sleep(Duration::from_millis(5197)).await;
+                            let now = Utc::now().timestamp();
+                            for key in connection.keys() {
+                                let mut is_remove = false;
+                                match connection.get(key) {
+                                    None => {}
+                                    Some(o) => {
+                                        if  now - o.update_time >= idle_timeout {
+                                            o.client_stream.shutdown(Shutdown::Both);
+                                            o.server_stream.shutdown(Shutdown::Both);
+                                            s.send(ConnectionCommand{
+                                                id: *key,
+                                                cmd: 3,
+                                                client_stream: None,
+                                                server_stream: None,
+                                            }).await;
+                                        }
+                                    }
+                                }
+                                
+                            }
+
+                            /*
+                            if is_remove == true {
+                                connection.remove(&key);
+                            }
+                            */
+                        }
+                        2 => {
+                            info!("2 - update timestamp");
+                            match connection.get_mut(&cmd.id) {
+                                None => {}
+                                Some(o) => {
+                                    o.update_time = Utc::now().timestamp()
+                                }
+                            }
+
+                        }
+                        3 => {
+                            info!("3 - kill connection");
+                            match connection.get(&cmd.id) {
+                                None => {}
+                                Some(o) => {
+                                    o.client_stream.shutdown(Shutdown::Both);
+                                    o.server_stream.shutdown(Shutdown::Both);
+                                }
+                            }
+                            connection.remove(&cmd.id);
+                        }
+                        _ => {
+                            info!("unknown");
+                        }
+                    }
+                }
+                Err(_e) => {
+                    info!("manage_connection Error!");
+                }
+            }
+
+            info!("{:?}", connection);
+
+        }
+    });
+    /*
+        */
+    spawn(async move {
+        log!("Timer Started!");
+        loop {
+            sleep(Duration::from_millis(5197)).await;
+            scanner_sender.send(ConnectionCommand{
+                id: 0,
+                cmd: 1,
+                client_stream: None,
+                server_stream: None,
+            }).await;
+
+        }
+    });
+
 }
 
 

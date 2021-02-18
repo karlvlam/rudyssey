@@ -1,4 +1,4 @@
-async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpStream, chan:&str, config: &Arc<Config>) {
+async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpStream, cid: u128, s: Sender<ConnectionCommand>, config: &Arc<Config>) {
 
     let mut tcp_buffer = [0; TCP_BUFFER_SIZE];
     let mut buffer = [0; BUFFER_SIZE ];
@@ -229,7 +229,7 @@ async fn client_to_server(mut client_stream: TcpStream, mut server_stream: TcpSt
 
                 }
                 Err(_e) => {
-                    error!("{} stream=> Error: {:?}",chan, _e);
+                    error!("{} stream=> Error: {:?}",cid, _e);
                     break;
                 }
             }

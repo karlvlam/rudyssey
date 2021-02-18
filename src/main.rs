@@ -115,7 +115,7 @@ async fn main() {
                         listener
                             .incoming()
                             .for_each_concurrent(/* limit */ None, |stream| async {
-                                kill_connection(stream.unwrap());
+                                stream.unwrap().shutdown(Shutdown::Both);
                             }).await;
                     }
                     Err(_e) => {
@@ -149,17 +149,18 @@ async fn main() {
                             let uuid = Uuid::new_v4();
                             let cid = uuid.as_u128();
                             
+                            // register
                             s.send(ConnectionCommand{
                                 id:cid, cmd:0, 
                                 client_stream:Some(client_stream.clone()), 
                                 server_stream:Some(server_stream.clone())
                             }).await;
                           
-                            handle_connection(client_stream, server_stream, &config).await;
+                            handle_connection(client_stream, server_stream, &config, cid, s.clone()).await;
                         }
                         Err(e) => {
                             error!("{}", e);
-                            kill_connection(client_stream);
+                            client_stream.shutdown(Shutdown::Both);
                         }
                 }
 
@@ -174,10 +175,13 @@ async fn main() {
 
 }
 
-fn kill_connection(stream: TcpStream) {
-    for _i in 1..=3 {
-        stream.shutdown(Shutdown::Both);
-    }
+async fn kill_connection(cid: u128, s: Sender<ConnectionCommand>) {
+    s.send(ConnectionCommand{
+        id: cid,
+        cmd: 3,
+        client_stream: None,
+        server_stream: None,
+    }).await;
 }
 
 async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionCommand>, idle_timeout: i64){
@@ -197,8 +201,8 @@ async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionC
                 Ok(cmd) => {
                     match cmd.cmd {
                         0 => {
-                            info!("0 - register");
-                            info!("{}", cmd.id);
+                            //info!("0 - register");
+                            //info!("{}", cmd.id);
                             let client_stream = cmd.client_stream.unwrap();
                             let server_stream = cmd.server_stream.unwrap();
                             connection.insert(cmd.id, 
@@ -210,8 +214,7 @@ async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionC
                             );
                         }
                         1 => {
-                            info!("1 - scan");
-                            sleep(Duration::from_millis(5197)).await;
+                            //info!("1 - scan");
                             let now = Utc::now().timestamp();
                             for key in connection.keys() {
                                 let mut is_remove = false;
@@ -219,28 +222,25 @@ async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionC
                                     None => {}
                                     Some(o) => {
                                         if  now - o.update_time >= idle_timeout {
-                                            o.client_stream.shutdown(Shutdown::Both);
-                                            o.server_stream.shutdown(Shutdown::Both);
+                                            info!("IDLE_TIMEOUT: {} -> {} > {}", *key, now - o.update_time, idle_timeout);
+                                            kill_connection(*key, s.clone()).await;
+                                            /*
                                             s.send(ConnectionCommand{
                                                 id: *key,
                                                 cmd: 3,
                                                 client_stream: None,
                                                 server_stream: None,
                                             }).await;
+                                            */
                                         }
                                     }
                                 }
                                 
                             }
 
-                            /*
-                            if is_remove == true {
-                                connection.remove(&key);
-                            }
-                            */
                         }
                         2 => {
-                            info!("2 - update timestamp");
+                            //info!("2 - update timestamp");
                             match connection.get_mut(&cmd.id) {
                                 None => {}
                                 Some(o) => {
@@ -250,18 +250,19 @@ async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionC
 
                         }
                         3 => {
-                            info!("3 - kill connection");
-                            match connection.get(&cmd.id) {
+                            //info!("3 - kill connection");
+                            match connection.remove(&cmd.id) {
                                 None => {}
                                 Some(o) => {
                                     o.client_stream.shutdown(Shutdown::Both);
                                     o.server_stream.shutdown(Shutdown::Both);
+                                    info!("SHUTDOWN_CONNECTION: {}", &cmd.id);
                                 }
                             }
-                            connection.remove(&cmd.id);
+                            //connection.remove(&cmd.id);
                         }
                         _ => {
-                            info!("unknown");
+                            //info!("unknown");
                         }
                     }
                 }
@@ -270,7 +271,7 @@ async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionC
                 }
             }
 
-            info!("{:?}", connection);
+            //info!("{:?}", connection);
 
         }
     });
@@ -293,7 +294,7 @@ async fn manage_connection(r: Receiver<ConnectionCommand>, s: Sender<ConnectionC
 }
 
 
-async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, config: &Arc<Config>){
+async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, config: &Arc<Config>, cid: u128, s: Sender<ConnectionCommand>){
 
     info!("handle_connection!");
     // for io::copy
@@ -315,29 +316,29 @@ async fn handle_connection(client_stream: TcpStream, server_stream: TcpStream, c
     let config_1 = config.clone();
     let config_2 = config.clone();
 
+    let server_sender = s.clone();
+    let client_sender = s.clone();
 
     spawn(async move {
         info!("[conn] server connected!");
         // !!! very slow, only use for debugging !!!
-        stream_to_stream(server_stream_2, client_stream_2, "Server", &config_1).await; 
+        stream_to_stream(server_stream_2, client_stream_2, cid, server_sender.clone(), &config_1).await; 
 
         // io::copy -> just forward any data from server to client
         //copy_stream(server_stream_2, client_stream_2, "Server").await;
 
         // close both streams
         //
-        kill_connection(server_stream_3);
-        kill_connection(client_stream_3);
+        kill_connection(cid, server_sender.clone()).await;
         info!("[conn] server disconnected!");
     });
 
     spawn(async move {
         info!("[conn] client connected!");
-        client_to_server(client_stream, server_stream, "Client", &config_2).await;
+        client_to_server(client_stream, server_stream, cid, client_sender.clone(), &config_2).await;
 
         // close both streams
-        kill_connection(server_stream_4);
-        kill_connection(client_stream_4);
+        kill_connection(cid, client_sender.clone()).await;
         //copy_stream(client_stream, server_stream, "Client").await;
         info!("[conn] client disconnected!");
     });

@@ -15,9 +15,4 @@ lazy_static = "1.4.0"
 chrono = "0.4.19"
 bcrypt = "0.8"
 uuid = { version = "0.8.2", features = ["v4"] }
-
-
-[dependencies.async-std]
-futures = "1.7"
-features = ["attributes", "unstable"]
-
+async-std = { version = "1.7", features = ["attributes", "unstable"] }
